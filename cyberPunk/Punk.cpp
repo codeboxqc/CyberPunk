@@ -24,6 +24,8 @@ void example1(int x, int y, LSD* gfx, float dt);
 void ini1(int x, int y);
 void example2(LSD* gfx, float dt);
 void ini2(int x, int y);
+void example3(LSD* gfx, float dt);
+void init3(int x, int y);
 /////////////////////////////////////////////////////////////////////////
 
 int loop() {
@@ -63,12 +65,15 @@ int loop() {
                 logMessage("exit loop.\n");
             }
 
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) {
-                if (!space_pressed) {
-                    effect_mode = 1 - effect_mode; // Toggle 0 ↔ 1
-                    space_pressed = true;
-                    logMessage(effect_mode ? "Switched to plasma\n" : "Switched to flame\n");
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    running = false;
                 }
+                if (event.key.keysym.sym == SDLK_SPACE) {
+                    effect_mode = (effect_mode + 1) % 3;
+                   
+                }
+                 
             }
 
         }
@@ -88,9 +93,14 @@ int loop() {
             example1(960, 900, &gfx, dt); // Flame near bottom-center
            
         }
-        else {
+        if (effect_mode == 1) {
             example2(&gfx, dt);
             
+        }
+
+        if (effect_mode == 2) {
+            example3(&gfx, dt);
+
         }
         
         SDL_Delay(16); // ~60 FPS
@@ -121,13 +131,12 @@ int main(int argc, char* argv[])
         logMessage("Failed to initialize SDL.\n");
         return 1;
     }
-
-
-
+     
     logMessage("begin loop.\n");
     
     ini1(X,Y); //flame
     ini2(960, 540);//plasma
+    init3(960, 540);//fluid
      
 
     int result = loop();
