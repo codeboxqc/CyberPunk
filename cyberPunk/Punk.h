@@ -181,4 +181,91 @@ void processInput(InputState* input);  // Process SDL events and update input st
 void cleanupInput(void);  // Cleanup input system
 
 
+
+
+
+
+
+
+typedef enum {
+    TEXT_RENDER_SOLID,
+    TEXT_RENDER_BLENDED,
+    TEXT_RENDER_SHADED
+} TextRenderMode;
+
+typedef enum {
+    ALIGN_LEFT,
+    ALIGN_CENTER,
+    ALIGN_RIGHT
+} TextAlign;
+
+typedef enum {
+    ANIM_NONE,
+    ANIM_FADE,
+    ANIM_SCALE,
+    ANIM_GLOW
+} TextAnimationType;
+
+typedef struct {
+    TextAnimationType type;
+    float duration;
+    float elapsed;
+    float startValue;
+    float endValue;
+    float glowIntensity;
+    SDL_Color glowColor;
+} TextAnimation;
+
+typedef struct {
+    SDL_Point offset;
+    SDL_Color color;
+    SDL_Texture* texture;
+    int width, height;
+} ShadowConfig;
+
+typedef struct {
+    TTF_Font* font;
+    SDL_Color color;
+    SDL_Point position;
+    int size;
+    char fontPath[512];
+    TextRenderMode renderMode;
+    TextAlign alignment;
+    SDL_Texture* cachedTexture;
+    int cachedWidth;
+    int cachedHeight;
+    char* cachedText;
+    ShadowConfig shadow;
+    TextAnimation animation;
+    int wrapWidth;
+} TextRenderer;
+
+int initText(TextRenderer* tr, const char* fontPath, int size);
+void setColorText(TextRenderer* tr, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+void setShadowConfig(TextRenderer* tr, int offsetX, int offsetY, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+void setPositionText(TextRenderer* tr, int x, int y);
+void setTextSize(TextRenderer* tr, int newSize);
+void setTextAlignment(TextRenderer* tr, TextAlign align);
+void setRenderMode(TextRenderer* tr, TextRenderMode mode);
+void setTextWrap(TextRenderer* tr, int wrapWidth);
+void setAnimation(TextRenderer* tr, TextAnimationType type, float duration, float startValue, float endValue);
+void setGlowAnimation(TextRenderer* tr, float duration, float intensity, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+void updateAnimation(TextRenderer* tr, float dt);
+void cacheText(SDL_Renderer* renderer, TextRenderer* tr, const char* text);
+void drawCachedText(SDL_Renderer* renderer, TextRenderer* tr);
+void putText(SDL_Renderer* renderer, TextRenderer* tr, const char* text);
+void putTextf(SDL_Renderer* renderer, TextRenderer* tr, const char* fmt, ...);
+void putTextWithShadow(SDL_Renderer* renderer, TextRenderer* tr, const char* text);
+void putOneChar(SDL_Renderer* renderer, TextRenderer* tr, char c);
+void cleanupText(TextRenderer* tr);
+
+
+
+
+
 #endif  
+
+
+
+
+////////////////////////////////////////////

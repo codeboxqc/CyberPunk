@@ -26,6 +26,9 @@ void example2(LSD* gfx, float dt);
 void ini2(int x, int y);
 void example3(LSD* gfx, float dt);
 void init3(int x, int y);
+
+int testini();
+void example4(SDL_Renderer* renderer, float dt);
 /////////////////////////////////////////////////////////////////////////
 
 int loop() {
@@ -44,6 +47,7 @@ int loop() {
     
     Uint32 lastTime = SDL_GetTicks();
     float dt=0;
+    float dtext = 0;
 
     
     bool running = true;
@@ -102,7 +106,10 @@ int loop() {
             example3(&gfx, dt);
 
         }
+
         
+
+
         SDL_Delay(16); // ~60 FPS
         end_frame(&gfx, 0);
 
@@ -112,6 +119,11 @@ int loop() {
        // Copy texture to renderer and present
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, gfx.screenTexture, NULL, NULL);
+
+
+        example4(renderer, dtext);  //text
+
+
         SDL_RenderPresent(renderer);
     }
 
@@ -137,6 +149,8 @@ int main(int argc, char* argv[])
     ini1(X,Y); //flame
     ini2(960, 540);//plasma
     init3(960, 540);//fluid
+    testini(); //text
+      
      
 
     int result = loop();
