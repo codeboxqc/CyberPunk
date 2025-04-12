@@ -134,6 +134,7 @@
     <ClCompile Include="log.cpp" />
     <ClCompile Include="lsd.cpp" />
     <ClCompile Include="Punk.cpp" />
+    <ClCompile Include="text.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Punk.h" />

@@ -2,29 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
+#include <SDL2/SDL.h>
+
  
 
-#include <SDL.h>
-
-#include <math.h>
+ 
 
 #define PLASMA_WIDTH 960
 #define PLASMA_HEIGHT 540
-#define TABLE_SIZE (PLASMA_WIDTH * PLASMA_HEIGHT)
-
-#define PI 3.1415926f
-
- 
-
-typedef struct {
-    unsigned char* body;      // Plasma body buffer (960x540)
-    unsigned char* tab1;      // Distance table
-    unsigned char* tab2;      // Sine-modulated table
-    Uint8 palette[256][3];    // Color palette for DOS-like banding
-    float r_phase, g_phase, b_phase; // Color cycling phases
-    int width;
-    int height;
-} Plasma;
+#define PI 3.14159265358979323846264338327950288419716939937510582097494459
 
 
 typedef struct {
@@ -40,7 +27,17 @@ typedef struct {
 
 extern void pixel(LSD* self, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
+ 
 
+typedef struct {
+    unsigned char* body;      // Plasma body buffer (960x540)
+    Uint8 palette[256][3];    // Static palette for DX7-like colors
+    int cosinus[256];         // Cosine table
+    int width;
+    int height;
+} Plasma;
+
+ Plasma plasma;
 
 void initPlasma(Plasma* plasma, int x, int y);
 void updatePlasma(Plasma* plasma, float dt);
@@ -48,52 +45,61 @@ void drawPlasma(Plasma* plasma, LSD* gfx);
 void destroyPlasma(Plasma* plasma);
 
 
-
 void initPlasma(Plasma* plasma, int x, int y) {
     plasma->width = PLASMA_WIDTH;
     plasma->height = PLASMA_HEIGHT;
     plasma->body = (unsigned char*)malloc(PLASMA_WIDTH * PLASMA_HEIGHT);
-    plasma->tab1 = (unsigned char*)malloc(TABLE_SIZE);
-    plasma->tab2 = (unsigned char*)malloc(TABLE_SIZE);
-    if (!plasma->body || !plasma->tab1 || !plasma->tab2) {
-        printf("Failed to allocate plasma buffers\n");
+    if (!plasma->body) {
+        printf("Failed to allocate plasma body\n");
         return;
     }
     memset(plasma->body, 0, PLASMA_WIDTH * PLASMA_HEIGHT);
-    memset(plasma->tab1, 0, TABLE_SIZE);
-    memset(plasma->tab2, 0, TABLE_SIZE);
 
-    // Calculate tab1: DOS formula
-    for (int i = 0; i < PLASMA_HEIGHT; i++) {
-        for (int j = 0; j < PLASMA_WIDTH; j++) {
-            int idx = i * PLASMA_WIDTH + j;
-            float dist = sqrtf(16.0f + (PLASMA_HEIGHT / 2 - i) * (PLASMA_HEIGHT / 2 - i) +
-                (PLASMA_WIDTH / 2 - j) * (PLASMA_WIDTH / 2 - j)) - 4;
-            plasma->tab1[idx] = (unsigned char)(dist * 5);
-        }
-    }
-
-    // Calculate tab2: sine-modulated distance
-    for (int i = 0; i < PLASMA_HEIGHT; i++) {
-        for (int j = 0; j < PLASMA_WIDTH; j++) {
-            int idx = i * PLASMA_WIDTH + j;
-            float dist = sqrtf(16.0f + (PLASMA_HEIGHT / 2 - i) * (PLASMA_HEIGHT / 2 - i) +
-                (PLASMA_WIDTH / 2 - j) * (PLASMA_WIDTH / 2 - j)) - 4;
-            plasma->tab2[idx] = (unsigned char)((sinf(dist / 9.5f) + 1) * 90);
-        }
-    }
-
-    // Initialize palette
+    // Initialize cosine table (DX7 Pre_Calc)
     for (int i = 0; i < 256; i++) {
-        float u = 2 * PI / 256 * i;
-        plasma->palette[i][0] = (cosf(u + 1.0f / 6.0f * PI) + 1) * 31;
-        plasma->palette[i][1] = (cosf(u + 3.0f / 6.0f * PI) + 1) * 31;
-        plasma->palette[i][2] = (cosf(u + 5.0f / 6.0f * PI) + 1) * 31;
+        plasma->cosinus[i] = (int)(30 * cos(i * (PI / 128)));
     }
 
-    plasma->r_phase = 1.0f / 6.0f * PI;
-    plasma->g_phase = 3.0f / 6.0f * PI;
-    plasma->b_phase = 5.0f / 6.0f * PI;
+    // Initialize static palette (DX7 dxp)
+    for (int i = 0; i < 256; i++) {
+        plasma->palette[i][0] = 0;
+        plasma->palette[i][1] = 0;
+        plasma->palette[i][2] = 0;
+    }
+    for (int x = 1; x <= 32; x++) {
+        // Blue ramp
+        plasma->palette[x][0] = 0;
+        plasma->palette[x][1] = 0;
+        plasma->palette[x][2] = (x * 2 - 1) * 4;
+        // Red to blue
+        plasma->palette[x + 32][0] = (x * 2 - 1) * 4;
+        plasma->palette[x + 32][1] = 0;
+        plasma->palette[x + 32][2] = 255;
+        // Red + blue to white
+        plasma->palette[x + 64][0] = 255;
+        plasma->palette[x + 64][1] = (x * 2 - 1) * 4;
+        plasma->palette[x + 64][2] = 255;
+        // White
+        plasma->palette[x + 96][0] = 255;
+        plasma->palette[x + 96][1] = 255;
+        plasma->palette[x + 96][2] = 255;
+        // White
+        plasma->palette[x + 128][0] = 255;
+        plasma->palette[x + 128][1] = 255;
+        plasma->palette[x + 128][2] = 255;
+        // White to yellow
+        plasma->palette[x + 160][0] = 255;
+        plasma->palette[x + 160][1] = 255;
+        plasma->palette[x + 160][2] = (63 - (x * 2 - 1)) * 4;
+        // Yellow to red
+        plasma->palette[x + 192][0] = 255;
+        plasma->palette[x + 192][1] = (63 - (x * 2 - 1)) * 4;
+        plasma->palette[x + 192][2] = 0;
+        // Red to black
+        plasma->palette[x + 224][0] = (63 - (x * 2 - 1)) * 4;
+        plasma->palette[x + 224][1] = 0;
+        plasma->palette[x + 224][2] = 0;
+    }
 
     srand((unsigned int)time(NULL));
     printf("Initialized plasma at (%d, %d)\n", x, y);
@@ -104,70 +110,34 @@ void destroyPlasma(Plasma* plasma) {
         free(plasma->body);
         plasma->body = NULL;
     }
-    if (plasma->tab1) {
-        free(plasma->tab1);
-        plasma->tab1 = NULL;
-    }
-    if (plasma->tab2) {
-        free(plasma->tab2);
-        plasma->tab2 = NULL;
-    }
 }
 
 void updatePlasma(Plasma* plasma, float dt) {
-    static float circle1 = 0, circle2 = 0, circle3 = 0, circle4 = 0;
-    static float circle5 = 0, circle6 = 0, circle7 = 0, circle8 = 0;
-    static float roll = 0;
+    static unsigned char p1 = 0, p2 = 0, p3 = 0, p4 = 0;
+    unsigned char t1, t2, t3, t4;
+    int col;
 
-    // Update circle offsets (DOS speeds)
-    circle1 += 0.0142f * dt * 60.0f; // 0.085/6
-    circle2 -= 0.0167f * dt * 60.0f; // 0.1/6
-    circle3 += 0.05f * dt * 60.0f;   // 0.3/6
-    circle4 -= 0.0333f * dt * 60.0f; // 0.2/6
-    circle5 += 0.0667f * dt * 60.0f; // 0.4/6
-    circle6 -= 0.025f * dt * 60.0f;  // 0.15/6
-    circle7 += 0.0583f * dt * 60.0f; // 0.35/6
-    circle8 -= 0.0083f * dt * 60.0f; // 0.05/6
-    roll += 5.0f * dt * 60.0f;       // 5/frame
-
-    // Update palette (DOS-style multi-phase)
-    for (int i = 0; i < 256; i++) {
-        float u = 2 * PI / 256 * i;
-        plasma->palette[i][0] = (cosf(u + plasma->r_phase) + 1) * 31;
-        plasma->palette[i][1] = (cosf(u + plasma->g_phase) + 1) * 31;
-        plasma->palette[i][2] = (cosf(u + plasma->b_phase) + 1) * 31;
-    }
-
-    // Calculate offsets
-    int x1 = (PLASMA_WIDTH / 2) + (PLASMA_WIDTH / 2) * cosf(circle3);
-    int y1 = (PLASMA_HEIGHT / 2) + (PLASMA_HEIGHT / 2) * sinf(circle4);
-    int x2 = (PLASMA_WIDTH / 2) + (PLASMA_WIDTH / 2) * sinf(circle1);
-    int y2 = (PLASMA_HEIGHT / 2) + (PLASMA_HEIGHT / 2) * cosf(circle2);
-    int x3 = (PLASMA_WIDTH / 2) + (PLASMA_WIDTH / 2) * cosf(circle5);
-    int y3 = (PLASMA_HEIGHT / 2) + (PLASMA_HEIGHT / 2) * sinf(circle6);
-    int x4 = (PLASMA_WIDTH / 2) + (PLASMA_WIDTH / 2) * cosf(circle7);
-    int y4 = (PLASMA_HEIGHT / 2) + (PLASMA_HEIGHT / 2) * sinf(circle8);
-
-    // Calculate plasma body
-    for (int i = 0; i < PLASMA_HEIGHT; i++) {
-        for (int j = 0; j < PLASMA_WIDTH; j++) {
-            int k = i * PLASMA_WIDTH + j;
-            int idx1 = ((i + y1) % PLASMA_HEIGHT) * PLASMA_WIDTH + ((j + x1) % PLASMA_WIDTH);
-            int idx2 = ((i + y2) % PLASMA_HEIGHT) * PLASMA_WIDTH + ((j + x2) % PLASMA_WIDTH);
-            int idx3 = ((i + y3) % PLASMA_HEIGHT) * PLASMA_WIDTH + ((j + x3) % PLASMA_WIDTH);
-            int idx4 = ((i + y4) % PLASMA_HEIGHT) * PLASMA_WIDTH + ((j + x4) % PLASMA_WIDTH);
-            float sum = plasma->tab1[idx1] + roll +
-                plasma->tab2[idx2] +
-                plasma->tab2[idx3] +
-                plasma->tab2[idx4];
-            plasma->body[k] = (unsigned char)(sum * 0.25f);
+    // Compute plasma body (DX7 Do_Plasma)
+    t1 = p1;
+    t2 = p2;
+    for (int y = 0; y < PLASMA_HEIGHT; y++) {
+        t3 = p3;
+        t4 = p4;
+        for (int x = 0; x < PLASMA_WIDTH; x++) {
+            col = plasma->cosinus[t1] + plasma->cosinus[t2] + plasma->cosinus[t3] + plasma->cosinus[t4];
+            plasma->body[y * PLASMA_WIDTH + x] = (unsigned char)col; // Natural wrapping
+            t3 = (t3 + 1) % 256;
+            t4 = (t4 + 3) % 256;
         }
+        t1 = (t1 + 2) % 256;
+        t2 = (t2 + 1) % 256;
     }
 
-    // Update color phases (DOS speeds)
-    plasma->r_phase += 0.05f * dt * 60.0f;  // ~3.0 radians/s
-    plasma->g_phase -= 0.05f * dt * 60.0f;
-    plasma->b_phase += 0.1f * dt * 60.0f;
+    // Update animation offsets
+    p1 = (p1 + 1) % 256;
+    p2 = (p2 - 2) % 256;
+    p3 = (p3 - 1) % 256;
+    p4 = (p4 + 3) % 256;
 }
 
 void drawPlasma(Plasma* plasma, LSD* gfx) {
@@ -189,7 +159,7 @@ void drawPlasma(Plasma* plasma, LSD* gfx) {
 
 
 
-Plasma plasma;;
+
 
 void ini2(int x, int y)
 { //ini2(int x, int y)
