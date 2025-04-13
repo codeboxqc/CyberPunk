@@ -72,7 +72,7 @@ void initFluid(Fluid* fluid, int x, int y) {
     memset(fluid->u, 0, FLUID_WIDTH * FLUID_HEIGHT * sizeof(float));
     memset(fluid->v, 0, FLUID_WIDTH * FLUID_HEIGHT * sizeof(float));
 
-    // Initialize palette for text
+    // Initialize palette for text (not used for fluid colors anymore)
     for (int i = 0; i < 256; i++) {
         fluid->palette[i][0] = 0;
         fluid->palette[i][1] = 0;
@@ -121,7 +121,15 @@ void initFluid(Fluid* fluid, int x, int y) {
         return;
     }
 
-    // Initialize body with text (white, opaque)
+    // Initialize body with text and glow outline
+    float* temp_body = (float*)malloc(FLUID_WIDTH * FLUID_HEIGHT * 4 * sizeof(float));
+    if (!temp_body) {
+        printf("Failed to allocate temp body\n");
+        return;
+    }
+    memset(temp_body, 0, FLUID_WIDTH * FLUID_HEIGHT * 4 * sizeof(float));
+
+    // First pass: Render text
     for (int y = 0; y < FLUID_HEIGHT; y++) {
         for (int x = 0; x < FLUID_WIDTH; x++) {
             int tx = x - (FLUID_WIDTH - fluid->text_surface->w) / 2;
@@ -130,21 +138,62 @@ void initFluid(Fluid* fluid, int x, int y) {
             if (tx >= 0 && tx < fluid->text_surface->w && ty >= 0 && ty < fluid->text_surface->h) {
                 Uint8* pixel = (Uint8*)fluid->text_surface->pixels + ty * fluid->text_surface->pitch + tx * 4;
                 if (pixel[3] > 0) {
-                    fluid->body[i] = 255.0f;
-                    fluid->body[i + 1] = 255.0f;
-                    fluid->body[i + 2] = 255.0f;
-                    fluid->body[i + 3] = 255.0f;
+                    temp_body[i] = 255.0f;
+                    temp_body[i + 1] = 255.0f;
+                    temp_body[i + 2] = 255.0f;
+                    temp_body[i + 3] = 255.0f;
                 }
             }
         }
     }
+
+    // Second pass: Add pink glow outline
+    for (int y = 0; y < FLUID_HEIGHT; y++) {
+        for (int x = 0; x < FLUID_WIDTH; x++) {
+            int i = (y * FLUID_WIDTH + x) * 4;
+            if (temp_body[i + 3] == 255.0f) {
+                fluid->body[i] = 255.0f;
+                fluid->body[i + 1] = 255.0f;
+                fluid->body[i + 2] = 255.0f;
+                fluid->body[i + 3] = 255.0f;
+            }
+            else {
+                // Check neighbors for glow
+                float glow = 0.0f;
+                float glow_radius = 5.0f;
+                for (int dy = -5; dy <= 5; dy++) {
+                    for (int dx = -5; dx <= 5; dx++) {
+                        int nx = x + dx;
+                        int ny = y + dy;
+                        if (nx >= 0 && nx < FLUID_WIDTH && ny >= 0 && ny < FLUID_HEIGHT) {
+                            int ni = (ny * FLUID_WIDTH + nx) * 4;
+                            if (temp_body[ni + 3] == 255.0f) {
+                                float dist = sqrtf(dx * dx + dy * dy);
+                                if (dist <= glow_radius) {
+                                    float g = (1.0f - dist / glow_radius);
+                                    glow = fmaxf(glow, g);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (glow > 0.0f) {
+                    fluid->body[i] = 255.0f * glow;     // Pink glow
+                    fluid->body[i + 1] = 105.0f * glow;
+                    fluid->body[i + 2] = 180.0f * glow;
+                    fluid->body[i + 3] = 255.0f * glow;
+                }
+            }
+        }
+    }
+    free(temp_body);
 
     fluid->mouse_x = fluid->mouse_y = 0;
     fluid->mouse_dx = fluid->mouse_dy = 0;
     fluid->mouse_moved = 0;
 
     srand((unsigned int)time(NULL));
-    printf("Initialized fluid at (%d, %d)\n", x, y);
+    //printf("Initialized fluid at (%d, %d)\n", x, y);
 }
 
 void destroyFluid(Fluid* fluid) {
@@ -161,6 +210,8 @@ void destroyFluid(Fluid* fluid) {
     fluid->font = NULL;
 }
 
+ 
+
 void updateFluid(Fluid* fluid, float dt) {
     if (!fluid->body || !fluid->u || !fluid->v || !fluid->text_surface) return;
 
@@ -171,6 +222,11 @@ void updateFluid(Fluid* fluid, float dt) {
         float radius = 30.0f;
         float speed = sqrtf(fluid->mouse_dx * fluid->mouse_dx + fluid->mouse_dy * fluid->mouse_dy);
         float alpha = fminf(100.0f + speed * 2.0f, 200.0f); // 100–200
+        // Dynamic color based on position and speed
+        float hue = (mx + my) * 0.01f + speed * 0.05f; // Vary hue
+        float r = 255.0f * fabsf(sinf(hue));
+        float g = 255.0f * fabsf(sinf(hue + 2.0f));
+        float b = 255.0f * fabsf(sinf(hue + 4.0f));
         for (int y = my - (int)radius; y <= my + (int)radius; y++) {
             for (int x = mx - (int)radius; x <= mx + (int)radius; x++) {
                 if (x >= 0 && x < FLUID_WIDTH && y >= 0 && y < FLUID_HEIGHT) {
@@ -183,9 +239,9 @@ void updateFluid(Fluid* fluid, float dt) {
                         fluid->v[y * FLUID_WIDTH + x] += fluid->mouse_dy * strength * 0.5f;
                         int i = (y * FLUID_WIDTH + x) * 4;
                         if (fluid->body[i + 3] < 255.0f) { // Skip text
-                            fluid->body[i] = 255.0f;
-                            fluid->body[i + 1] = 0.0f;
-                            fluid->body[i + 2] = 0.0f;
+                            fluid->body[i] = r;
+                            fluid->body[i + 1] = g;
+                            fluid->body[i + 2] = b;
                             fluid->body[i + 3] = alpha * strength;
                         }
                     }
@@ -283,7 +339,7 @@ void updateFluid(Fluid* fluid, float dt) {
     for (int i = 0; i < FLUID_WIDTH * FLUID_HEIGHT; i++) {
         int idx = i * 4;
         if (fluid->body[idx + 3] < 255.0f) { // Skip text
-            fluid->body[idx + 3] *= 0.95f; // Fade alpha
+            fluid->body[idx + 3] *= 0.98f; // Slower fade
             if (fluid->body[idx + 3] < 1.0f) {
                 fluid->body[idx] = 0;
                 fluid->body[idx + 1] = 0;
@@ -291,29 +347,117 @@ void updateFluid(Fluid* fluid, float dt) {
                 fluid->body[idx + 3] = 0;
             }
         }
-        fluid->u[i] *= 0.99f;
-        fluid->v[i] *= 0.99f;
+        fluid->u[i] *= 0.995f;
+        fluid->v[i] *= 0.995f;
     }
 }
 
 void drawFluid(Fluid* fluid, LSD* gfx) {
     if (!fluid->body || !gfx->pix) return;
-    for (int y = 0; y < FLUID_HEIGHT; y++) {
-        for (int x = 0; x < FLUID_WIDTH; x++) {
-            int i = (y * FLUID_WIDTH + x) * 4;
-            Uint8 r = (Uint8)fminf(fluid->body[i], 255.0f);
-            Uint8 g = (Uint8)fminf(fluid->body[i + 1], 255.0f);
-            Uint8 b = (Uint8)fminf(fluid->body[i + 2], 255.0f);
-            Uint8 a = (Uint8)fminf(fluid->body[i + 3], 255.0f);
-            pixel(gfx, x * 2, y * 2, r, g, b, a);
-            pixel(gfx, x * 2 + 1, y * 2, r, g, b, a);
-            pixel(gfx, x * 2, y * 2 + 1, r, g, b, a);
-            pixel(gfx, x * 2 + 1, y * 2 + 1, r, g, b, a);
+
+    // First pass: Render fluid with bilinear interpolation
+    float* temp_buffer = (float*)malloc(gfx->screenWidth * gfx->screenHeight * 4 * sizeof(float));
+    if (!temp_buffer) {
+        printf("Failed to allocate temp buffer\n");
+        return;
+    }
+    memset(temp_buffer, 0, gfx->screenWidth * gfx->screenHeight * 4 * sizeof(float));
+
+    for (int y = 0; y < gfx->screenHeight; y++) {
+        for (int x = 0; x < gfx->screenWidth; x++) {
+            float u = (float)x * FLUID_WIDTH / gfx->screenWidth;
+            float v = (float)y * FLUID_HEIGHT / gfx->screenHeight;
+            int u0 = (int)u;
+            int v0 = (int)v;
+            int u1 = u0 + 1;
+            int v1 = v0 + 1;
+            float fu = u - u0;
+            float fv = v - v0;
+
+            if (u1 >= FLUID_WIDTH) u1 = FLUID_WIDTH - 1;
+            if (v1 >= FLUID_HEIGHT) v1 = FLUID_HEIGHT - 1;
+
+            int i00 = (v0 * FLUID_WIDTH + u0) * 4;
+            int i10 = (v0 * FLUID_WIDTH + u1) * 4;
+            int i01 = (v1 * FLUID_WIDTH + u0) * 4;
+            int i11 = (v1 * FLUID_WIDTH + u1) * 4;
+
+            float w00 = (1.0f - fu) * (1.0f - fv);
+            float w10 = fu * (1.0f - fv);
+            float w01 = (1.0f - fu) * fv;
+            float w11 = fu * fv;
+
+            float r = 0, g = 0, b = 0, a = 0;
+            for (int c = 0; c < 4; c++) {
+                float v00 = fluid->body[i00 + c];
+                float v10 = fluid->body[i10 + c];
+                float v01 = fluid->body[i01 + c];
+                float v11 = fluid->body[i11 + c];
+                float value = w00 * v00 + w10 * v10 + w01 * v01 + w11 * v11;
+                if (c == 0) r = value;
+                else if (c == 1) g = value;
+                else if (c == 2) b = value;
+                else a = value;
+            }
+
+            int idx = (y * gfx->screenWidth + x) * 4;
+            temp_buffer[idx] = r;
+            temp_buffer[idx + 1] = g;
+            temp_buffer[idx + 2] = b;
+            temp_buffer[idx + 3] = a;
         }
     }
+
+    // Second pass: Apply glow and render to screen
+    for (int y = 0; y < gfx->screenHeight; y++) {
+        for (int x = 0; x < gfx->screenWidth; x++) {
+            int idx = (y * gfx->screenWidth + x) * 4;
+            float r = temp_buffer[idx];
+            float g = temp_buffer[idx + 1];
+            float b = temp_buffer[idx + 2];
+            float a = temp_buffer[idx + 3];
+
+            // Apply glow by sampling neighbors
+            float glow_r = 0, glow_g = 0, glow_b = 0, glow_a = 0;
+            float glow_radius = 3.0f;
+            float glow_weight = 0;
+            for (int dy = -3; dy <= 3; dy++) {
+                for (int dx = -3; dx <= 3; dx++) {
+                    int nx = x + dx;
+                    int ny = y + dy;
+                    if (nx >= 0 && nx < gfx->screenWidth && ny >= 0 && ny < gfx->screenHeight) {
+                        float dist = sqrtf(dx * dx + dy * dy);
+                        if (dist <= glow_radius) {
+                            float weight = (1.0f - dist / glow_radius) * 0.2f;
+                            int ni = (ny * gfx->screenWidth + nx) * 4;
+                            glow_r += temp_buffer[ni] * weight;
+                            glow_g += temp_buffer[ni + 1] * weight;
+                            glow_b += temp_buffer[ni + 2] * weight;
+                            glow_a += temp_buffer[ni + 3] * weight;
+                            glow_weight += weight;
+                        }
+                    }
+                }
+            }
+            if (glow_weight > 0) {
+                glow_r /= glow_weight;
+                glow_g /= glow_weight;
+                glow_b /= glow_weight;
+                glow_a /= glow_weight;
+            }
+
+            // Blend glow with original color
+            r = fminf(r + glow_r * 0.5f, 255.0f);
+            g = fminf(g + glow_g * 0.5f, 255.0f);
+            b = fminf(b + glow_b * 0.5f, 255.0f);
+            a = fminf(a + glow_a * 0.3f, 255.0f);
+
+            pixel(gfx, x, y, (Uint8)r, (Uint8)g, (Uint8)b, (Uint8)a);
+        }
+    }
+
+    free(temp_buffer);
 }
-
-
 
 
 void init3(int x, int y)

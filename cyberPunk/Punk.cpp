@@ -27,12 +27,21 @@ void ini2(int x, int y);
 void example3(LSD* gfx, float dt);
 void init3(int x, int y);
 
+ 
+void star3d(LSD* ssgfx);
+void example5ini(LSD* ssgfx);
+/////////////////////////////////////////////
+
 int testini();
 void example4(SDL_Renderer* renderer, float dt);
 /////////////////////////////////////////////////////////////////////////
 
+
+LSD gfx;
+
+
 int loop() {
-    LSD gfx;
+    
     int effect_mode = 0; // 0 = flame, 1 = plasma
     bool space_pressed = false; // Track spacebar state
 
@@ -74,7 +83,7 @@ int loop() {
                     running = false;
                 }
                 if (event.key.keysym.sym == SDLK_SPACE) {
-                    effect_mode = (effect_mode + 1) % 3;
+                    effect_mode = (effect_mode + 1) % 4;
                    
                 }
                  
@@ -107,6 +116,10 @@ int loop() {
 
         }
 
+        if (effect_mode == 3) {
+            star3d(&gfx);
+        }
+
         
 
 
@@ -121,7 +134,7 @@ int loop() {
         SDL_RenderCopy(renderer, gfx.screenTexture, NULL, NULL);
 
 
-        example4(renderer, dtext);  //text
+       // example4(renderer, dtext);  //text
 
 
         SDL_RenderPresent(renderer);
@@ -150,6 +163,8 @@ int main(int argc, char* argv[])
     ini2(960, 540);//plasma
     init3(960, 540);//fluid
     testini(); //text
+  
+     example5ini(&gfx); //3d
       
      
 

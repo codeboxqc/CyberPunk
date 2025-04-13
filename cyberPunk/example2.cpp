@@ -8,9 +8,11 @@
  
 
  
-
-#define PLASMA_WIDTH 960
-#define PLASMA_HEIGHT 540
+//int X = 1920, Y = 1080;
+//#define PLASMA_WIDTH 960
+//#define PLASMA_HEIGHT 540
+#define PLASMA_WIDTH 1920
+#define PLASMA_HEIGHT 1080
 #define PI 3.14159265358979323846264338327950288419716939937510582097494459
 
 
@@ -31,8 +33,8 @@ extern void pixel(LSD* self, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
 typedef struct {
     unsigned char* body;      // Plasma body buffer (960x540)
-    Uint8 palette[256][3];    // Static palette for DX7-like colors
-    int cosinus[256];         // Cosine table
+    Uint8 palette[256+1][3];    // Static palette for DX7-like colors
+    int cosinus[256+1];         // Cosine table
     int width;
     int height;
 } Plasma;
@@ -55,12 +57,12 @@ void initPlasma(Plasma* plasma, int x, int y) {
     }
     memset(plasma->body, 0, PLASMA_WIDTH * PLASMA_HEIGHT);
 
-    // Initialize cosine table (DX7 Pre_Calc)
+    // Initialize cosine table  
     for (int i = 0; i < 256; i++) {
         plasma->cosinus[i] = (int)(30 * cos(i * (PI / 128)));
     }
 
-    // Initialize static palette (DX7 dxp)
+    // Initialize static palette  
     for (int i = 0; i < 256; i++) {
         plasma->palette[i][0] = 0;
         plasma->palette[i][1] = 0;
@@ -102,7 +104,7 @@ void initPlasma(Plasma* plasma, int x, int y) {
     }
 
     srand((unsigned int)time(NULL));
-    printf("Initialized plasma at (%d, %d)\n", x, y);
+   // printf("Initialized plasma at (%d, %d)\n", x, y);
 }
 
 void destroyPlasma(Plasma* plasma) {
@@ -140,19 +142,57 @@ void updatePlasma(Plasma* plasma, float dt) {
     p4 = (p4 + 3) % 256;
 }
 
+// Wrap macro for clean coordinate wrapping
+#define WRAP(i, max) (((i) + (max)) % (max))
+
 void drawPlasma(Plasma* plasma, LSD* gfx) {
-    // Stretch 960x540 body to 1920x1080
-    for (int y = 0; y < PLASMA_HEIGHT; y++) {
-        for (int x = 0; x < PLASMA_WIDTH; x++) {
-            int k = y * PLASMA_WIDTH + x;
-            unsigned char value = plasma->body[k];
-            Uint8 r = plasma->palette[value][0];
-            Uint8 g = plasma->palette[value][1];
-            Uint8 b = plasma->palette[value][2];
-            pixel(gfx, x * 2, y * 2, r, g, b, 255);
-            pixel(gfx, x * 2 + 1, y * 2, r, g, b, 255);
-            pixel(gfx, x * 2, y * 2 + 1, r, g, b, 255);
-            pixel(gfx, x * 2 + 1, y * 2 + 1, r, g, b, 255);
+    int w = gfx->screenWidth;
+    int h = gfx->screenHeight;
+    int pw = PLASMA_WIDTH;
+    int ph = PLASMA_HEIGHT;
+
+    for (int y = 0; y < h; y++) {
+        float v = (float)y / h * ph;
+        int iy = (int)v;
+        float fy = v - iy;
+
+        for (int x = 0; x < w; x++) {
+            float u = (float)x / w * pw;
+            int ix = (int)u;
+            float fx = u - ix;
+
+            // Wrap coordinates instead of clamping
+            int i00 = WRAP(iy, ph) * pw + WRAP(ix, pw);
+            int i10 = WRAP(iy, ph) * pw + WRAP(ix + 1, pw);
+            int i01 = WRAP(iy + 1, ph) * pw + WRAP(ix, pw);
+            int i11 = WRAP(iy + 1, ph) * pw + WRAP(ix + 1, pw);
+
+            int c00 = plasma->body[i00];
+            int c10 = plasma->body[i10];
+            int c01 = plasma->body[i01];
+            int c11 = plasma->body[i11];
+
+            float w00 = (1.0f - fx) * (1.0f - fy);
+            float w10 = fx * (1.0f - fy);
+            float w01 = (1.0f - fx) * fy;
+            float w11 = fx * fy;
+
+            float r = plasma->palette[c00][0] * w00 +
+                      plasma->palette[c10][0] * w10 +
+                      plasma->palette[c01][0] * w01 +
+                      plasma->palette[c11][0] * w11;
+
+            float g = plasma->palette[c00][1] * w00 +
+                      plasma->palette[c10][1] * w10 +
+                      plasma->palette[c01][1] * w01 +
+                      plasma->palette[c11][1] * w11;
+
+            float b = plasma->palette[c00][2] * w00 +
+                      plasma->palette[c10][2] * w10 +
+                      plasma->palette[c01][2] * w01 +
+                      plasma->palette[c11][2] * w11;
+
+            pixel(gfx, x, y, (Uint8)(r + 0.5f), (Uint8)(g + 0.5f), (Uint8)(b + 0.5f), 255);
         }
     }
 }
@@ -164,7 +204,8 @@ void drawPlasma(Plasma* plasma, LSD* gfx) {
 void ini2(int x, int y)
 { //ini2(int x, int y)
 
-    initPlasma(&plasma, 960, 540);
+ 
+    initPlasma(&plasma, 1920, 1080);
 
 }
 

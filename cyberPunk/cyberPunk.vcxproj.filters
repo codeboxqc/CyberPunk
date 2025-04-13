@@ -42,6 +42,9 @@
     <ClCompile Include="example3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="cuber.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Punk.h">
