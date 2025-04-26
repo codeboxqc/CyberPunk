@@ -308,6 +308,7 @@ static inline void getPixelColor3(LSD* self, int x, int y,
 }
 
 
+ 
 
 // Pixel
   void pixel(LSD* self, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {

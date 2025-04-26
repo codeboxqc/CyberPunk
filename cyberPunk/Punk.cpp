@@ -34,11 +34,17 @@ void example5ini(LSD* ssgfx);
 
 int testini();
 void example4(SDL_Renderer* renderer, float dt);
+
+void plasma2ini(LSD *iii);
+void plasma2(LSD* iii, int offset);
+
+int asmini();
+void asmgo(LSD* iii);
 /////////////////////////////////////////////////////////////////////////
 
 
 LSD gfx;
-
+int plasma_offset = 0;
 
 int loop() {
     
@@ -83,7 +89,7 @@ int loop() {
                     running = false;
                 }
                 if (event.key.keysym.sym == SDLK_SPACE) {
-                    effect_mode = (effect_mode + 1) % 4;
+                    effect_mode = (effect_mode + 1) % 5;
                    
                 }
                  
@@ -103,7 +109,10 @@ int loop() {
 
         // Run selected effect
         if (effect_mode == 0) {
-            example1(960, 900, &gfx, dt); // Flame near bottom-center
+             example1(960, 900, &gfx, dt); // Flame near bottom-center
+
+
+         
            
         }
         if (effect_mode == 1) {
@@ -112,15 +121,17 @@ int loop() {
         }
 
         if (effect_mode == 2) {
-            example3(&gfx, dt);
-
+            plasma2(&gfx, plasma_offset);
+            plasma_offset = (plasma_offset + 1) % 256;
         }
 
         if (effect_mode == 3) {
             star3d(&gfx);
         }
 
-        
+        if (effect_mode == 4) {
+        asmgo(&gfx);
+        }
 
 
         SDL_Delay(16); // ~60 FPS
@@ -161,9 +172,10 @@ int main(int argc, char* argv[])
     
     ini1(X,Y); //flame
     ini2(960, 540);//plasma
-    init3(960, 540);//fluid
+    
     testini(); //text
-  
+    plasma2ini(&gfx);
+    asmini();
      example5ini(&gfx); //3d
       
      

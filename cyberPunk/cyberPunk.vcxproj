@@ -127,6 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="asmplasma.cpp" />
     <ClCompile Include="audio.cpp" />
     <ClCompile Include="cuber.cpp" />
     <ClCompile Include="example1.cpp" />
