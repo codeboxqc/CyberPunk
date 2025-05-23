@@ -49,14 +49,14 @@ uint8_t Co1 = 0, Co2 = 0, Co3 = 0, Co4 = 0;
 
 void initCosine2() {
     for (int i = 0; i < 256; ++i) {
-        cosine[i] = static_cast<uint8_t>(std::round(64 + 63 * std::cos(i * M_PI / 128.0)));
+        cosine[i] = static_cast<uint8_t>(std::lround(64 + 63 * std::cos(i * M_PI / 128.0)));
     }
 }
 
 void initCosine() {
     for (int i = 0; i < 256; ++i) {
         // Generate values using a sine wave with an offset for better visual range
-        cosine[i] = static_cast<uint8_t>(std::round(30 + 32 * std::sin(i * M_PI / 129.0)));
+        cosine[i] = static_cast<uint8_t>(std::lround(30 + 32 * std::sin(i * M_PI / 129.0)));
     }
 }
 
@@ -124,9 +124,10 @@ uint8_t noise(uint8_t baseValue) {
 
 void cyclePalette() {
     for (int i = 0; i < 128; ++i) {
-        palette[i][0] = (palette[i][0] + 1) % 256;
-        palette[i][1] = (palette[i][1] + 1) % 256;
-        palette[i][2] = (palette[i][2] + 1) % 256;
+        palette[i][0] = palette[i][0] + 1;
+        palette[i][1] = palette[i][1] + 1;
+        palette[i][2] = palette[i][2] + 1;
+        // Relying on uint8_t overflow for modulo 256 behavior
     }
 }
 

@@ -48,9 +48,15 @@
     <ClCompile Include="asmplasma.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="fire2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Punk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="fire2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
