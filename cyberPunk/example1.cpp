@@ -21,7 +21,7 @@ typedef struct {
     int pitchPixels;  // New field to store the pitch divided by 4
 } LSD;
 
-extern void pixel(LSD* self, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+ extern void pixel(LSD* self, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
  
 
