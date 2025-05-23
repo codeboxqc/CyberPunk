@@ -12,6 +12,7 @@
 //#pragma comment(lib,"SDL2main.lib")
 
 #include "punk.h"
+#include "fire2.h" // Include the new fire effect header
 
 
 int X = 1920, Y = 1080;
@@ -45,12 +46,17 @@ void asmgo(LSD* iii);
 
 LSD gfx;
 int plasma_offset = 0;
+bool fire2Initialized = false; // Flag for FireEffect2 initialization
 
 int loop() {
     
-    int effect_mode = 0; // 0 = flame, 1 = plasma
-    bool space_pressed = false; // Track spacebar state
+    int effect_mode = 0; // 0 = old flame, 1 = old plasma, 2 = plasma2, 3 = star3d, 4 = asmplasma, 5 = fire2
+    int num_effects = 6; // Total number of effects including the new fire2
 
+    // Track initialization state for effects that need it.
+    // For simplicity, we'll re-initialize if switched back, or assume one-time init is fine for these demos.
+    // A more robust system would track init state for each and clean up/re-init.
+    // For this integration, fire2Initialized handles FireEffect2 specifically.
 
     if (!init(&gfx, renderer, X, Y,0)) {
         logMessage("Failed to init LSD Engine\n");
@@ -89,68 +95,86 @@ int loop() {
                     running = false;
                 }
                 if (event.key.keysym.sym == SDLK_SPACE) {
-                    effect_mode = (effect_mode + 1) % 5;
-                   
+                    effect_mode = (effect_mode + 1) % num_effects;
+                    if (effect_mode != 5) { // If switching away from FireEffect2
+                        if (fire2Initialized) {
+                            FireEffect2::closeFire2();
+                            fire2Initialized = false;
+                            logMessage("Closed Fire Effect 2.");
+                        }
+                    }
                 }
-                 
             }
-
         }
 
         // Begin frame: clear screen (optional) and set up for drawing
         begin_frame(&gfx,0);
 
-        // Clear to black
+        // Clear to black - This is a brute-force clear. 
+        // `clear(&gfx, 0,0,0,255)` or `memset` in `begin_frame` is more efficient.
+        // Assuming begin_frame with methode 0 handles clearing.
+        // If not, this loop is very slow. For now, keeping as is.
+        // The current begin_frame(..., 0) does a memset. So this loop is redundant.
+        // I will remove this redundant clear loop.
+        /*
         for (int y = 0; y < gfx.screenHeight; y++) {
             for (int x = 0; x < gfx.screenWidth; x++) {
                 pixel(&gfx, x, y, 0, 0, 0, 255);
             }
         }
+        */
 
         // Run selected effect
         if (effect_mode == 0) {
              example1(960, 900, &gfx, dt); // Flame near bottom-center
-
-
-         
-           
         }
-        if (effect_mode == 1) {
+        else if (effect_mode == 1) {
             example2(&gfx, dt);
-            
         }
-
-        if (effect_mode == 2) {
+        else if (effect_mode == 2) {
             plasma2(&gfx, plasma_offset);
             plasma_offset = (plasma_offset + 1) % 256;
         }
-
-        if (effect_mode == 3) {
+        else if (effect_mode == 3) {
             star3d(&gfx);
         }
-
-        if (effect_mode == 4) {
-        asmgo(&gfx);
+        else if (effect_mode == 4) {
+            asmgo(&gfx);
+        }
+        else if (effect_mode == 5) { // New FireEffect2
+            if (!fire2Initialized) {
+                if (!FireEffect2::initFire2(&gfx, X, Y)) { // Use global X, Y for screen dimensions
+                    logMessage("Failed to initialize Fire Effect 2");
+                    running = false; // Exit loop on critical init failure
+                } else {
+                    fire2Initialized = true;
+                    logMessage("Fire Effect 2 Initialized.");
+                }
+            }
+            if (fire2Initialized) { // Only run if initialized
+                FireEffect2::updateFire2();
+                FireEffect2::renderFire2(&gfx);
+            }
         }
 
-
-        SDL_Delay(16); // ~60 FPS
-        end_frame(&gfx, 0);
-
-       
+        // SDL_Delay(16); // ~60 FPS - This can be problematic with variable workloads.
+        // The dt calculation at the start of the loop is better for smooth updates if effects use dt.
+        // For fixed updates like some of these demos, it might be okay.
+        end_frame(&gfx, 0); // This updates texture from gfx.pix and renders
 
         // Present the renderer (flip the buffers)
-       // Copy texture to renderer and present
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, gfx.screenTexture, NULL, NULL);
-
-
-       // example4(renderer, dtext);  //text
-
-
-        SDL_RenderPresent(renderer);
+        // SDL_RenderClear(renderer); //This is done in end_frame or should be.
+        // SDL_RenderCopy(renderer, gfx.screenTexture, NULL, NULL); // Also done in end_frame for methode 0
+        // example4(renderer, dtext);  //text - This draws directly to renderer, after gfx is copied.
+        SDL_RenderPresent(renderer); // Final present
     }
 
+    // Cleanup for FireEffect2 if it was active
+    if (fire2Initialized) {
+        FireEffect2::closeFire2();
+        fire2Initialized = false;
+        logMessage("Closed Fire Effect 2 on exit.");
+    }
     return 0;
 }
 
@@ -170,19 +194,18 @@ int main(int argc, char* argv[])
      
     logMessage("begin loop.\n");
     
+    // Initialize other effects
     ini1(X,Y); //flame
     ini2(960, 540);//plasma
-    
     testini(); //text
-    plasma2ini(&gfx);
+    plasma2ini(&gfx); // This takes &gfx, implies it might use screen buffer directly or for info
     asmini();
-     example5ini(&gfx); //3d
+    example5ini(&gfx); //3d, also takes &gfx
       
-     
-
     int result = loop();
     logMessage("end loop.\n");
 
+    // General cleanup already present
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

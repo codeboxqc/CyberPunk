@@ -134,6 +134,7 @@
     <ClCompile Include="example2.cpp" />
     <ClCompile Include="example3.cpp" />
     <ClCompile Include="key.cpp" />
+    <ClCompile Include="fire2.cpp" />  <!-- Added fire2.cpp -->
     <ClCompile Include="log.cpp" />
     <ClCompile Include="lsd.cpp" />
     <ClCompile Include="Punk.cpp" />
@@ -144,6 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <ClInclude Include="fire2.h" /> <!-- Added fire2.h -->
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
