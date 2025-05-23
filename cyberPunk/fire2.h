@@ -1,8 +1,7 @@
 #ifndef FIRE2_H
 #define FIRE2_H
 
-// Forward declare LSD structure if its definition is not included here
-struct LSD; 
+
 
 namespace FireEffect2 {
 
